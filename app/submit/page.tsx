@@ -20,6 +20,15 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+type ProblemType = "llm_agents" | "ai_filmmaking";
 
 export default function SubmitPage() {
   const { user, profile } = useAuth();
@@ -28,6 +37,7 @@ export default function SubmitPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [screenshotUrl, setScreenshotUrl] = useState("");
   const [description, setDescription] = useState("");
+  const [problemType, setProblemType] = useState<ProblemType>("llm_agents");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -40,10 +50,64 @@ export default function SubmitPage() {
       return;
     }
 
+    // Check if user/team already has a submission
+    const { data: existingSubmission, error: submissionError } = await supabase
+      .from("applications")
+      .select("id")
+      .eq("creator_id", profile.id)
+      .single();
+
+    if (submissionError && submissionError.code !== "PGRST116") {
+      console.error("Error checking existing submission:", submissionError);
+      toast({
+        title: "Error",
+        description: "Failed to check existing submission",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (existingSubmission) {
+      toast({
+        title: "Error",
+        description: "You have already submitted an application",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if any team member has submitted
+    if (profile.team_id) {
+      const { data: teamSubmissions, error: teamError } = await supabase
+        .from("applications")
+        .select("id")
+        .eq("creator_id", profile.team_id)
+        .single();
+
+      if (teamError && teamError.code !== "PGRST116") {
+        console.error("Error checking team submission:", teamError);
+        toast({
+          title: "Error",
+          description: "Failed to check team submission",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (teamSubmissions) {
+        toast({
+          title: "Error",
+          description: "Your team has already submitted an application",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     if (!screenshotUrl) {
       toast({
         title: "Error",
-        description: "Please upload a screenshot of your application",
+        description: "Please upload a screenshot/logo of your application",
         variant: "destructive",
       });
       return;
@@ -73,10 +137,17 @@ export default function SubmitPage() {
           url: formData.get("url"),
           screenshot_url: screenshotUrl,
           video_url: formData.get("video_url") || null,
+          github_url:
+            problemType === "llm_agents" ? formData.get("github_url") : null,
           tags,
           creator_id: profile.id,
+          team_id: profile.team_id,
           comments_enabled: true,
           status: "pending",
+          problem_type: problemType,
+          score: 0,
+          review_requested_at: null,
+          reviewed_at: null,
         })
         .select()
         .single();
@@ -154,11 +225,27 @@ export default function SubmitPage() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="title">Application Title</Label>
+              <Label htmlFor="problem_type">Problem Type</Label>
+              <Select
+                value={problemType}
+                onValueChange={(value: ProblemType) => setProblemType(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select problem type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="llm_agents">LLM Agents</SelectItem>
+                  <SelectItem value="ai_filmmaking">AI Filmmaking</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="title">Application Name</Label>
               <Input
                 id="title"
                 name="title"
-                placeholder="Enter your application title"
+                placeholder="Enter your application name"
                 required
               />
             </div>
@@ -184,33 +271,71 @@ export default function SubmitPage() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="url">Application URL</Label>
-              <Input
-                id="url"
-                name="url"
-                type="url"
-                placeholder="https://your-app.com"
-                required
-              />
-            </div>
+            {problemType === "llm_agents" && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="url">Application URL</Label>
+                  <Input
+                    id="url"
+                    name="url"
+                    type="url"
+                    placeholder="https://your-app.com"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="github_url">GitHub Repository URL</Label>
+                  <Input
+                    id="github_url"
+                    name="github_url"
+                    type="url"
+                    placeholder="https://github.com/username/repo"
+                    required
+                  />
+                </div>
+              </>
+            )}
+
+            {problemType === "ai_filmmaking" && (
+              <div className="space-y-2">
+                <Label htmlFor="url">Project Video URL</Label>
+                <Input
+                  id="url"
+                  name="url"
+                  type="url"
+                  placeholder="https://your-project.com"
+                  required
+                />
+              </div>
+            )}
 
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Label htmlFor="video_url">Demo Video (Optional)</Label>
+                <Label htmlFor="video_url">
+                  {problemType === "llm_agents"
+                    ? "Demo Video"
+                    : "Explanation Video"}
+                </Label>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Info className="h-4 w-4 text-muted-foreground cursor-pointer" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      Share a Google Drive link to a video demonstrating your
-                      application's functionality.
-                      <br />
-                      <b>
-                        Don't forget to give public access to the video you are
-                        sharing.
-                      </b>
+                      {problemType === "llm_agents" ? (
+                        <>
+                          Share a Google Drive link to a video demonstrating
+                          your application's functionality.
+                          <br />
+                          <b>
+                            Don't forget to give public access to the video you
+                            are sharing.
+                          </b>
+                        </>
+                      ) : (
+                        "Share a public video link (YouTube, Vimeo, or Loom) showcasing your AI filmmaking project and explaining your approach"
+                      )}
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -219,11 +344,23 @@ export default function SubmitPage() {
                 id="video_url"
                 name="video_url"
                 type="url"
-                placeholder="https://drive.google.com/file/d/your-video-id/view"
+                placeholder={
+                  problemType === "llm_agents"
+                    ? "https://drive.google.com/file/d/your-video-id/view"
+                    : "https://drive.google.com/file/d/your-video-id/view"
+                }
+                required
               />
             </div>
 
-            <FileUpload onUploadComplete={setScreenshotUrl} />
+            <div className="space-y-2">
+              {/* <Label htmlFor="screenshot">
+                {problemType === "llm_agents"
+                  ? "App Logo"
+                  : "Project Screenshot"}
+              </Label> */}
+              <FileUpload onUploadComplete={setScreenshotUrl} />
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="tags">Tags (comma separated)</Label>
@@ -233,16 +370,6 @@ export default function SubmitPage() {
                 placeholder="react, typescript, web3"
               />
             </div>
-
-            {/* never enable comments and remove this */}
-            {/* <div className="flex items-center justify-between space-x-2">
-              <Label htmlFor="comments_enabled">Enable Comments</Label>
-              <Switch
-                id="comments_enabled"
-                name="comments_enabled"
-                defaultChecked={true}
-              />
-            </div> */}
 
             <div className="flex gap-4">
               <Button type="submit" className="flex-1" disabled={isSubmitting}>
