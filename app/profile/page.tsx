@@ -45,6 +45,7 @@ type Profile = {
   user_id: string;
   email: string;
   public_email: boolean;
+  participant_type?: string;
 };
 
 type ProfileApplication = Application & {
@@ -478,6 +479,11 @@ export default function ProfilePage() {
                 </Badge>
               )}
             </p>
+            {profile?.participant_type && (
+              <Badge variant="outline" className="ml-2">
+                {profile.participant_type}
+              </Badge>
+            )}
           </div>
 
           <div className="flex gap-2">
