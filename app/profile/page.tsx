@@ -123,10 +123,23 @@ export default function ProfilePage() {
         .select(
           `
           *,
-          stars(count)
+          stars(count),
+          creator:profiles!creator_id(
+            id,
+            user_id,
+            team_id
+          )
         `
         )
-        .eq("creator_id", profile.id)
+        .in(
+          "creator_id",
+          (
+            await supabase
+              .from("profiles")
+              .select("id")
+              .eq("team_id", profile.team_id)
+          ).data?.map((p) => p.id) || []
+        )
         .order("created_at", { ascending: false });
 
       if (appsError) throw appsError;
@@ -545,7 +558,7 @@ export default function ProfilePage() {
             variant={activeTab === "my" ? "default" : "outline"}
             onClick={() => setActiveTab("my")}
           >
-            My Applications ({myApplications.length})
+            Team Submissions
           </Button>
           <Button
             variant={activeTab === "liked" ? "default" : "outline"}
