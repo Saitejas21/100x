@@ -113,12 +113,13 @@ export default function Home() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold tracking-tight mb-6">
             <span className="text-foreground">Welcome to</span>{" "}
-            <span className="text-[#ef5a3c]">100x Engineers</span>
+            <span className="text-[#ef5a3c]">Buildathon 2.0</span>
           </h1>
 
           <p className="mt-6 text-xl sm:text-2xl text-muted-foreground max-w-3xl mx-auto mb-12 font-mono">
-            Showcase your web applications and discover innovative projects from
-            developers around the world.
+            Join the next wave of builders at India's biggest Gen AI Buildathon
+            - where ideas ignite, tools get shipped, and innovation takes center
+            stage.
           </p>
 
           <div className="flex justify-center gap-6">
