@@ -50,74 +50,49 @@ export default function SubmitPage() {
       return;
     }
 
-    // Check if user/team already has a submission
-    const { data: existingSubmission, error: submissionError } = await supabase
-      .from("applications")
-      .select("id")
-      .eq("creator_id", profile.id)
-      .single();
-
-    if (submissionError && submissionError.code !== "PGRST116") {
-      console.error("Error checking existing submission:", submissionError);
-      toast({
-        title: "Error",
-        description: "Failed to check existing submission",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (existingSubmission) {
-      toast({
-        title: "Error",
-        description: "You have already submitted an application",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Check if any team member has submitted
-    if (profile.team_id) {
-      const { data: teamSubmissions, error: teamError } = await supabase
-        .from("applications")
-        .select("id")
-        .eq("creator_id", profile.team_id)
-        .single();
-
-      if (teamError && teamError.code !== "PGRST116") {
-        console.error("Error checking team submission:", teamError);
-        toast({
-          title: "Error",
-          description: "Failed to check team submission",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (teamSubmissions) {
-        toast({
-          title: "Error",
-          description: "Your team has already submitted an application",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-
-    if (!screenshotUrl) {
-      toast({
-        title: "Error",
-        description: "Please upload a screenshot/logo of your application",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsSubmitting(true);
 
     try {
-      const form = e.currentTarget;
-      const formData = new FormData(form);
+      // Check if team already has a submission
+      if (profile.team_id) {
+        const { data: teamSubmission, error: teamError } = await supabase
+          .from("applications")
+          .select("id")
+          .eq("team_id", profile.team_id)
+          .maybeSingle();
+
+        if (teamError) {
+          console.error("Error checking team submission:", teamError);
+          toast({
+            title: "Error",
+            description: "Failed to check team submission",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (teamSubmission) {
+          toast({
+            title: "Error",
+            description: "Your team has already submitted an application",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      if (!screenshotUrl) {
+        toast({
+          title: "Error",
+          description: "Please upload a screenshot/logo of your application",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Get form data
+      const formElement = e.target as HTMLFormElement;
+      const formData = new FormData(formElement);
 
       // Process tags
       const tags =
