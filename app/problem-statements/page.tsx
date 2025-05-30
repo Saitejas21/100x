@@ -62,6 +62,9 @@ export default function ProblemStatementsPage() {
   const [teamSubmission, setTeamSubmission] = useState<any>(null);
   const [isDeadlinePassed, setIsDeadlinePassed] = useState(false);
   const [showOpenProblemDialog, setShowOpenProblemDialog] = useState(false);
+  const [showConfirmationDialog, setShowConfirmationDialog] = useState(false);
+  const [selectedProblemForConfirmation, setSelectedProblemForConfirmation] =
+    useState("");
   const { toast } = useToast();
   const { user, profile } = useAuth();
   const router = useRouter();
@@ -203,10 +206,16 @@ export default function ProblemStatementsPage() {
       return;
     }
 
+    // Show confirmation dialog for other problem statements
+    setSelectedProblemForConfirmation(selectedProblem);
+    setShowConfirmationDialog(true);
+  };
+
+  const handleProblemSubmit = async () => {
     setLoading(true);
     try {
       // For team members
-      if (profile.team_id) {
+      if (profile?.team_id) {
         // Check if someone else has already submitted
         const { data: existingSubmission } = await supabase
           .from("team_problem_submissions")
@@ -225,7 +234,7 @@ export default function ProblemStatementsPage() {
 
         const submissionData = {
           team_id: profile.team_id,
-          selected_problem: selectedProblem,
+          selected_problem: selectedProblemForConfirmation,
           submitted_by: profile.id,
           submitted_at: new Date().toISOString(),
         };
@@ -249,7 +258,7 @@ export default function ProblemStatementsPage() {
         const { error } = await supabase
           .from("profiles")
           .update({
-            selected_problem: selectedProblem,
+            selected_problem: selectedProblemForConfirmation,
             problem_selected_at: new Date().toISOString(),
             problem_submission_locked: true,
           })
@@ -274,6 +283,7 @@ export default function ProblemStatementsPage() {
       });
     } finally {
       setLoading(false);
+      setShowConfirmationDialog(false);
     }
   };
 
@@ -496,6 +506,58 @@ export default function ProblemStatementsPage() {
                 className="bg-[#ef5a3c] hover:bg-[#ef5a3c]/90"
               >
                 {loading ? "Processing..." : "Proceed"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={showConfirmationDialog}
+          onOpenChange={setShowConfirmationDialog}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Problem Statement Selection</DialogTitle>
+              <DialogDescription>
+                You are about to select the following problem statement:
+                <div className="mt-4 p-4 bg-muted rounded-lg">
+                  <p className="font-semibold">
+                    {
+                      problemStatements.find(
+                        (p) => p.id === selectedProblemForConfirmation
+                      )?.title
+                    }
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {
+                      problemStatements.find(
+                        (p) => p.id === selectedProblemForConfirmation
+                      )?.company
+                    }
+                  </p>
+                </div>
+                <p className="mt-4">Please note that this will:</p>
+                <ul className="list-disc list-inside mt-2 space-y-1">
+                  <li>Lock your problem statement selection</li>
+                  <li>This selection cannot be changed later</li>
+                </ul>
+                Are you sure you want to proceed with this selection?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setShowConfirmationDialog(false)}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleProblemSubmit}
+                disabled={loading}
+                className="bg-[#ef5a3c] hover:bg-[#ef5a3c]/90"
+              >
+                {loading ? "Processing..." : "Confirm Selection"}
               </Button>
             </DialogFooter>
           </DialogContent>
